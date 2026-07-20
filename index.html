@@ -166,18 +166,18 @@ padding-right:8px;
     </div>
     <div class="two-col">
       <div class="field">
-        <label>英文姓 Surname</label>
+        <label>英文姓 Last Name（與護照相同）</label>
         <input type="text" id="englishSurname" placeholder="例：Wang">
       </div>
       <div class="field">
-        <label>英文名 Given Name</label>
+        <label>英文名 First Name（與護照相同）</label>
         <input type="text" id="englishGivenName" placeholder="例：John">
       </div>
     </div>
     <div class="two-col">
       <div class="field">
         <label>出生日期</label>
-        <input type="date" id="dob" min="1900-01-01" max="2026-07-17">
+        <input type="date" id="dob" min="1900-01-01" max="2026-07-17" value="1981-08-27">
       </div>
       <div class="field">
         <label>國籍 / 稅務居留地</label>
@@ -185,12 +185,12 @@ padding-right:8px;
       </div>
     </div>
     <div class="field">
-      <label>身分證字號 / 護照號碼（同時作為稅務編號 TIN）</label>
+      <label>身分證字號 / 護照號碼</label>
       <input type="text" id="idNumber" placeholder="例：A123456789">
     </div>
     <div class="two-col">
       <div class="field">
-        <label>聯絡電話</label>
+        <label>手機號碼</label>
         <input type="text" id="contactNumber" placeholder="例：0912345678 或 +886912345678">
       </div>
       <div class="field">
@@ -227,7 +227,7 @@ padding-right:8px;
   <div class="section">
     <h2>受益人資料 Beneficiary（Appendix I）</h2>
     <div class="field">
-      <label>受益人英文姓名</label>
+      <label>受益人英文姓名（與護照相同）</label>
       <input type="text" id="beneficiaryInfo" placeholder="例：John Wang">
     </div>
   </div>
@@ -249,8 +249,8 @@ padding-right:8px;
     <button class="btn" id="downloadAllBtn">下載全部 PDF</button>
   </div>
   <div class="two-col">
-    <button class="btn secondary" id="resetBtn">清空重填</button>
     <button class="btn secondary" id="exportCsvBtn">匯出個人資料 CSV</button>
+    <button class="btn secondary" id="resetBtn">清空重填</button>
   </div>
   <input type="file" id="importCsvInput" accept=".csv" style="display:none">
   <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
@@ -576,6 +576,7 @@ document.getElementById('closePreviewBtn').addEventListener('click', () => {
 document.getElementById('resetBtn').addEventListener('click', () => {
   document.querySelectorAll('input, textarea').forEach(el => {
     if(el.id === 'nationality'){ el.value = '台灣'; }
+    else if(el.id === 'dob'){ el.value = '1981-08-27'; }
     else { el.value = ''; }
   });
   setStatus('已清空');
@@ -592,7 +593,7 @@ const CSV_LABEL_TO_ID = {
   '出生日期(YYYY-MM-DD)': 'dob',
   '國籍 / 稅務居留地': 'nationality',
   '身份證 / 護照號碼': 'idNumber',
-  '聯絡電話': 'contactNumber',
+  '手機號碼': 'contactNumber',
   '電子郵件': 'email',
   '住址': 'address',
   '職業': 'occupation',
@@ -624,7 +625,7 @@ function exportCsv(){
     ['出生日期(YYYY-MM-DD)', rawDob],
     ['國籍 / 稅務居留地', values.nationality],
     ['身份證 / 護照號碼', values.idNumber],
-    ['聯絡電話', values.contactNumber],
+    ['手機號碼', values.contactNumber],
     ['電子郵件', values.email],
     ['住址', values.address],
     ['職業', values.occupation],
