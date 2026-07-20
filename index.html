@@ -216,14 +216,6 @@ padding-right:8px;
     </div>
   </div>
 
-  <div class="section">
-    <h2>保單資料 Grantor Declaration</h2>
-    <div class="field">
-      <label>每年保費</label>
-      <input type="text" id="annualPremium" placeholder="例：USD 10,000">
-    </div>
-  </div>
-
 </main>
 
 <div class="footer-bar">
@@ -286,7 +278,6 @@ const FIELD_MAP = [
   {page:8, x:234.0, bottom:158.0, field:'englishName'},
   {page:8, x:346.0, bottom:242.0, field:'idNumber'},
   {page:8, x:153.0, bottom:322.0, field:'address'},
-  {page:8, x:214.0, bottom:405.0, field:'annualPremium'},
 ];
 
 const PAGE_W = 595.32, PAGE_H = 841.92;
@@ -339,7 +330,7 @@ function normalizePhone(raw){
 function getValues(){
   const ids = ['chineseName','englishName','dob','nationality','idNumber','contactNumber','email',
     'address','occupation','industry','companyName','companyAddress',
-    'beneficiaryInfo','annualPremium'];
+    'beneficiaryInfo'];
   const vals = {};
   ids.forEach(id => { vals[id] = document.getElementById(id).value.trim(); });
   vals.dob = formatDob(vals.dob);
