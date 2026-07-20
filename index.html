@@ -146,7 +146,7 @@ padding-right:8px;
 <body>
 
 <header>
-  <h1>柏域信誠 · 保單表格填寫工具</h1>
+  <h1>保單表格填寫工具</h1>
   <p>填寫下方資料，系統會依原始範本格式自動套入對應欄位，並產生可下載的 PDF。</p>
 </header>
 
@@ -245,9 +245,14 @@ padding-right:8px;
     <button class="btn" id="ctfGenerateBtn">產生周大福投保申請書 PDF</button>
   </div>
   <div class="two-col">
+    <button class="btn secondary" id="importCsvBtn">匯入資料</button>
+    <button class="btn" id="downloadAllBtn">下載全部 PDF</button>
+  </div>
+  <div class="two-col">
     <button class="btn secondary" id="resetBtn">清空重填</button>
     <button class="btn secondary" id="exportCsvBtn">匯出個人資料 CSV</button>
   </div>
+  <input type="file" id="importCsvInput" accept=".csv" style="display:none">
   <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
   <div id="status"></div>
 </div>
@@ -576,6 +581,27 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   setStatus('已清空');
 });
 
+// Shared between export and import so the two stay in sync: CSV row label -> input id.
+// (中文姓名 / 英文姓名 are computed from the surname/given-name fields, not their own inputs,
+// so they're exported for reference but skipped on import.)
+const CSV_LABEL_TO_ID = {
+  '中文姓': 'chineseSurname',
+  '中文名': 'chineseGivenName',
+  '英文姓': 'englishSurname',
+  '英文名': 'englishGivenName',
+  '出生日期(YYYY-MM-DD)': 'dob',
+  '國籍 / 稅務居留地': 'nationality',
+  '身份證 / 護照號碼': 'idNumber',
+  '聯絡電話': 'contactNumber',
+  '電子郵件': 'email',
+  '住址': 'address',
+  '職業': 'occupation',
+  '行業': 'industry',
+  '公司名稱': 'companyName',
+  '公司地址': 'companyAddress',
+  '受益人英文姓名': 'beneficiaryInfo',
+};
+
 function csvEscape(val){
   val = String(val === undefined || val === null ? '' : val);
   if(/["\n,]/.test(val)){
@@ -586,6 +612,7 @@ function csvEscape(val){
 
 function exportCsv(){
   const values = getValues();
+  const rawDob = document.getElementById('dob').value; // keep ISO format so it can be re-imported
   const rows = [
     ['欄位', '內容'],
     ['中文姓', values.chineseSurname],
@@ -594,7 +621,7 @@ function exportCsv(){
     ['英文姓', values.englishSurname],
     ['英文名', values.englishGivenName],
     ['英文姓名', values.englishName],
-    ['出生日期', values.dob],
+    ['出生日期(YYYY-MM-DD)', rawDob],
     ['國籍 / 稅務居留地', values.nationality],
     ['身份證 / 護照號碼', values.idNumber],
     ['聯絡電話', values.contactNumber],
@@ -607,7 +634,7 @@ function exportCsv(){
     ['受益人英文姓名', values.beneficiaryInfo],
   ];
   const csvContent = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
-  const blob = new Blob(['﻿' + csvContent], {type: 'text/csv;charset=utf-8;'});
+  const blob = new Blob(['\uFEFF' + csvContent], {type: 'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const nameGuess = (values.chineseName || values.englishName || '個人資料').replace(/[^\w\u4e00-\u9fa5]/g, '');
   const a = document.createElement('a');
@@ -620,7 +647,90 @@ function exportCsv(){
   setStatus('CSV 已匯出', 'ok');
 }
 
+function parseCsvText(text){
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += ch;
+      }
+    } else if(ch === '"'){
+      inQuotes = true;
+    } else if(ch === ','){
+      row.push(field); field = '';
+    } else if(ch === '\r'){
+      // skip; \n (below) closes the row
+    } else if(ch === '\n'){
+      row.push(field); rows.push(row); row = []; field = '';
+    } else {
+      field += ch;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+function importCsvText(text){
+  const rows = parseCsvText(text);
+  let applied = 0;
+  rows.forEach(row => {
+    if(row.length < 2) return;
+    const id = CSV_LABEL_TO_ID[row[0].trim()];
+    if(!id) return;
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.value = row[1];
+    applied++;
+  });
+  if(applied === 0) throw new Error('找不到可匯入的欄位，請確認是用本工具匯出的 CSV');
+  return applied;
+}
+
+async function generateAllDocuments(){
+  const btn = document.getElementById('downloadAllBtn');
+  btn.disabled = true;
+  try{
+    await generateDocument({
+      btnId: 'trustGenerateBtn', pdfBase64: PDF_BASE64, fieldMap: FIELD_MAP,
+      pageW: PAGE_W, pageH: PAGE_H, filenamePrefix: '信託投保表格', defaultName: '信託投保表格'
+    });
+    await generateDocument({
+      btnId: 'ctfGenerateBtn', pdfBase64: CTF_PDF_BASE64, fieldMap: CTF_FIELD_MAP,
+      pageW: CTF_PAGE_W, pageH: CTF_PAGE_H, filenamePrefix: '周大福投保申請書', defaultName: '周大福投保申請書'
+    });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+document.getElementById('importCsvBtn').addEventListener('click', () => {
+  document.getElementById('importCsvInput').click();
+});
+document.getElementById('importCsvInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const count = importCsvText(reader.result);
+      setStatus(`已匯入 ${count} 個欄位`, 'ok');
+    }catch(err){
+      console.error(err);
+      setStatus('匯入失敗：' + err.message, 'err');
+    }
+    e.target.value = '';
+  };
+  reader.onerror = () => setStatus('讀取檔案失敗', 'err');
+  reader.readAsText(file, 'UTF-8');
+});
+document.getElementById('downloadAllBtn').addEventListener('click', generateAllDocuments);
 </script>
 
 </body>
